@@ -7,13 +7,37 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - run: pip install -q -U yt-dlp
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -q -U yt-dlp youtube-comment-downloader
       - name: grab
         run: |
-          yt-dlp --skip-download --write-comments --write-info-json \
-            --extractor-args "youtube:comment_sort=top;max_comments=400,all,0" \
-            -o info "https://www.youtube.com/watch?v=v4860RGi7IY" > log.txt 2>&1 || true
-          tail -40 log.txt
+          URL="https://www.youtube.com/watch?v=v4860RGi7IY"
+          ID="v4860RGi7IY"
+          { echo "=== A comment-downloader ==="
+            youtube-comment-downloader --url "$URL" --output comments.json --limit 600
+          } >> log.txt 2>&1 || true
+          if [ ! -s comments.json ]; then
+            { echo "=== B yt-dlp clients ==="
+              for pc in tv android_vr ios mweb web_embedded; do
+                echo "--- $pc ---"
+                yt-dlp --skip-download --write-comments --write-info-json \
+                  --extractor-args "youtube:player_client=$pc;comment_sort=top;max_comments=300,all,0" \
+                  -o "info_$pc" "$URL" && break
+              done
+            } >> log.txt 2>&1 || true
+          fi
+          if [ ! -s comments.json ] && ! ls info_*.info.json >/dev/null 2>&1; then
+            { echo "=== C invidious ==="
+              for base in https://inv.nadeko.net https://invidious.nerdvpn.de https://yewtu.be https://iv.melmac.space; do
+                echo "--- $base ---"
+                curl -s -m 30 "$base/api/v1/comments/$ID?sort_by=top" -o inv.json
+                if [ -s inv.json ] && grep -q likeCount inv.json; then mv inv.json comments_inv.json; break; fi
+              done
+            } >> log.txt 2>&1 || true
+          fi
+          ls -la >> log.txt
       - name: save
         if: always()
         run: |
