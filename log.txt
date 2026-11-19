@@ -4,3 +4,65 @@ WARNING: [youtube] No supported JavaScript runtime could be found. Only deno is 
 [youtube] v4860RGi7IY: Downloading visionos player API JSON
 WARNING: [youtube] No title found in player responses; falling back to title from initial data. Other metadata may also be missing
 ERROR: [youtube] v4860RGi7IY: Sign in to confirm you’re not a bot. This helps protect our community. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+=== A comment-downloader ===
+Downloading Youtube comments for https://www.youtube.com/watch?v=v4860RGi7IY
+Error: Expecting value: line 1 column 1 (char 0)
+=== B yt-dlp clients ===
+--- tv ---
+[youtube] Extracting URL: https://www.youtube.com/watch?v=v4860RGi7IY
+[youtube] v4860RGi7IY: Downloading webpage
+WARNING: [youtube] v4860RGi7IY: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)
+[youtube] v4860RGi7IY: Downloading initial data API JSON
+[youtube] v4860RGi7IY: Downloading tv client config
+[youtube] v4860RGi7IY: Downloading player 983e9c18-main
+[youtube] v4860RGi7IY: Downloading tv player API JSON
+WARNING: [youtube] No title found in player responses; falling back to title from initial data. Other metadata may also be missing
+ERROR: [youtube] v4860RGi7IY: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+--- android_vr ---
+[youtube] Extracting URL: https://www.youtube.com/watch?v=v4860RGi7IY
+[youtube] v4860RGi7IY: Downloading webpage
+WARNING: [youtube] v4860RGi7IY: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)
+[youtube] v4860RGi7IY: Downloading initial data API JSON
+[youtube] v4860RGi7IY: Downloading android vr player API JSON
+WARNING: [youtube] No title found in player responses; falling back to title from initial data. Other metadata may also be missing
+ERROR: [youtube] v4860RGi7IY: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+--- ios ---
+[youtube] Extracting URL: https://www.youtube.com/watch?v=v4860RGi7IY
+[youtube] v4860RGi7IY: Downloading webpage
+WARNING: [youtube] v4860RGi7IY: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)
+[youtube] v4860RGi7IY: Downloading initial data API JSON
+[youtube] v4860RGi7IY: Downloading ios player API JSON
+WARNING: [youtube] No title found in player responses; falling back to title from initial data. Other metadata may also be missing
+ERROR: [youtube] v4860RGi7IY: Sign in to confirm you’re not a bot. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+--- mweb ---
+[youtube] Extracting URL: https://www.youtube.com/watch?v=v4860RGi7IY
+[youtube] v4860RGi7IY: Downloading webpage
+WARNING: [youtube] v4860RGi7IY: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)
+[youtube] v4860RGi7IY: Downloading initial data API JSON
+[youtube] v4860RGi7IY: Downloading mweb client config
+[youtube] v4860RGi7IY: Downloading mweb player API JSON
+WARNING: [youtube] No title found in player responses; falling back to title from initial data. Other metadata may also be missing
+ERROR: [youtube] v4860RGi7IY: Sign in to confirm you’re not a bot. This helps protect our community. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+--- web_embedded ---
+[youtube] Extracting URL: https://www.youtube.com/watch?v=v4860RGi7IY
+[youtube] v4860RGi7IY: Downloading webpage
+WARNING: [youtube] v4860RGi7IY: Unable to download webpage: HTTP Error 429: Too Many Requests (caused by <HTTPError 429: Too Many Requests>)
+[youtube] v4860RGi7IY: Downloading initial data API JSON
+[youtube] v4860RGi7IY: Downloading web embedded client config
+[youtube] v4860RGi7IY: Downloading player 983e9c18-main
+[youtube] v4860RGi7IY: Downloading web embedded player API JSON
+WARNING: [youtube] No title found in player responses; falling back to title from initial data. Other metadata may also be missing
+ERROR: [youtube] v4860RGi7IY: Sign in to confirm you’re not a bot. This helps protect our community. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies. Also see  https://github.com/yt-dlp/yt-dlp/wiki/Extractors#exporting-youtube-cookies  for tips on effectively exporting YouTube cookies
+=== C invidious ===
+--- https://inv.nadeko.net ---
+--- https://invidious.nerdvpn.de ---
+--- https://yewtu.be ---
+--- https://iv.melmac.space ---
+total 40
+drwxr-xr-x 4 runner runner  4096 Nov 19 10:02 .
+drwxr-xr-x 3 runner runner  4096 Nov 19 10:02 ..
+drwxr-xr-x 7 runner runner  4096 Nov 19 10:02 .git
+drwxr-xr-x 3 runner runner  4096 Nov 19 10:02 .github
+-rw-r--r-- 1 runner runner    24 Nov 19 10:02 README.md
+-rw-r--r-- 1 runner runner 11354 Nov 19 10:02 inv.json
+-rw-r--r-- 1 runner runner  6240 Nov 19 10:02 log.txt
