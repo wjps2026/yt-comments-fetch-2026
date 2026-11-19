@@ -7,26 +7,13 @@ import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
 DEFAULT_VID = "We38nMkRTD8"
-
-
-def resolve_vid():
-    raw = (os.environ.get("VIDEO") or "").strip()
-    if not raw:
-        return DEFAULT_VID
-    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([A-Za-z0-9_-]{11})", raw)
-    if m:
-        return m.group(1)
-    if re.fullmatch(r"[A-Za-z0-9_-]{11}", raw):
-        return raw
-    return DEFAULT_VID
-
-
-VID = resolve_vid()
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
 MAX_PAGES = 10
-TARGET = 50
-KEEP = 60
+TOP_N = 50
+MAX_REPLIES_PER = 15
+MAX_REPLY_PAGES = 2
+MAX_TOTAL_REPLIES = 700
 
 INV_BASES = [
     "https://inv.nadeko.net",
@@ -42,19 +29,21 @@ INV_BASES = [
     "https://yt.artemislena.eu",
     "https://invidious.dhusch.de",
 ]
-PIPED_BASES = [
-    "https://pipedapi.kavin.rocks",
-    "https://pipedapi.adminforge.de",
-    "https://pipedapi.drgns.space",
-    "https://pipedapi.leptons.xyz",
-    "https://pipedapi.reallyaweso.me",
-    "https://api.piped.private.coffee",
-    "https://pipedapi.ducks.party",
-    "https://pipedapi.nosebs.ru",
-    "https://pipedapi.orangenet.cc",
-    "https://pipedapi.void.dx",
-    "https://pipedapi.darkness.services",
-]
+
+
+def resolve_vid():
+    raw = (os.environ.get("VIDEO") or "").strip()
+    if not raw:
+        return DEFAULT_VID
+    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([A-Za-z0-9_-]{11})", raw)
+    if m:
+        return m.group(1)
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", raw):
+        return raw
+    return DEFAULT_VID
+
+
+VID = resolve_vid()
 
 
 def http_get(url, t=25):
@@ -73,7 +62,6 @@ def get_json(url, t=25):
 
 def candidates():
     inv = list(INV_BASES)
-    piped = list(PIPED_BASES)
     try:
         data = json.loads(http_get("https://api.invidious.io/instances.json?sort_by=health"))
         for item in data:
@@ -84,67 +72,28 @@ def candidates():
         print("invidious list ok:", len(inv))
     except Exception as e:  # noqa: BLE001
         print("invidious list failed:", repr(e))
-    try:
-        data = json.loads(http_get("https://piped-instances.kavin.rocks/"))
-        for it in data:
-            u = str(it.get("api_url", "")).rstrip("/")
-            if u.startswith("https") and u not in piped:
-                piped.append(u)
-        print("piped list ok:", len(piped))
-    except Exception as e:  # noqa: BLE001
-        print("piped list failed:", repr(e))
-    return [("invidious", b) for b in inv] + [("piped", b) for b in piped]
+    return inv
 
 
-def first_page(cand):
-    kind, base = cand
+def probe(base):
     try:
-        if kind == "invidious":
-            d = get_json(base + "/api/v1/comments/" + VID + "?sort_by=top")
-        else:
-            d = get_json(base + "/comments/" + VID)
+        d = get_json(base + "/api/v1/comments/" + VID + "?sort_by=top")
         if d and isinstance(d.get("comments"), list) and d["comments"]:
-            return (kind, base, d)
+            return (base, d)
     except Exception:  # noqa: BLE001
         return None
     return None
 
 
-def next_token(kind, d):
-    return d.get("continuation") if kind == "invidious" else d.get("nextpage")
-
-
-def page_url(kind, base, token):
-    if kind == "invidious":
-        return (base + "/api/v1/comments/" + VID + "?sort_by=top&continuation="
-                + urllib.parse.quote(token))
-    return base + "/comments/" + VID + "?nextpage=" + urllib.parse.quote(token)
-
-
-def collect():
-    cands = candidates()
-    print("candidates:", len(cands))
-    hit = None
-    for i in range(0, len(cands), 10):
-        with ThreadPoolExecutor(max_workers=10) as ex:
-            for res in ex.map(first_page, cands[i:i + 10]):
-                if res and not hit:
-                    hit = res
-                    print("HIT", res[0], res[1])
-        if hit:
-            break
-    if not hit:
-        return None
-
-    kind, base, data = hit
-    comments = list(data.get("comments") or [])
-    token = next_token(kind, data)
+def collect(base, first):
+    comments = list(first.get("comments") or [])
+    token = first.get("continuation")
     pages = 1
-    print("page 1:", len(comments))
     while token and pages < MAX_PAGES:
         time.sleep(1.0)
         try:
-            d = get_json(page_url(kind, base, token))
+            d = get_json(base + "/api/v1/comments/" + VID
+                         + "?sort_by=top&continuation=" + urllib.parse.quote(token))
         except Exception as e:  # noqa: BLE001
             print("page err:", repr(e))
             break
@@ -156,16 +105,14 @@ def collect():
         comments.extend(batch)
         pages += 1
         print("page", pages, "+", len(batch), "total", len(comments))
-        token = next_token(kind, d)
+        token = d.get("continuation")
         if len(comments) >= 220:
             break
-    return kind, base, comments
+    return comments
 
 
 def parse_likes(v):
-    if isinstance(v, int):
-        return v
-    if isinstance(v, float):
+    if isinstance(v, (int, float)):
         return int(v)
     s = str(v or "0").strip().upper().replace(",", "")
     try:
@@ -178,88 +125,108 @@ def parse_likes(v):
         return 0
 
 
-def dedupe(comments):
-    seen = set()
-    out = []
-    for c in comments:
-        key = c.get("commentId") or (str(c.get("author")) + "|" + str(c.get("content") or c.get("commentText") or "")[:120])
-        if key in seen:
-            continue
-        seen.add(key)
-        out.append(c)
-    return out
+def reply_meta(c):
+    r = c.get("replies")
+    if isinstance(r, dict):
+        return int(r.get("replyCount") or 0), r.get("continuation")
+    if isinstance(r, list):
+        return len(r), None
+    return 0, None
 
 
-def norm(c):
+def norm_basic(c):
     text = c.get("content")
     if text is None:
         text = c.get("commentText")
     return {
-        "author": c.get("author") or c.get("uploader") or "",
+        "author": c.get("author") or "",
         "text": text or "",
-        "like_count": parse_likes(c.get("likeCount", c.get("likes"))),
-        "pinned": bool(c.get("isPinned") or c.get("pinned")),
-        "published": c.get("publishedText") or c.get("published") or "",
-        "replies": len(c.get("replies") or []),
+        "like_count": parse_likes(c.get("likeCount")),
+        "published": c.get("publishedText") or "",
     }
 
 
-def video_meta(kind, base):
-    try:
-        if kind == "invidious":
-            d = get_json(base + "/api/v1/videos/" + VID)
-            if d:
-                return {
-                    "title": d.get("title"),
-                    "channel": d.get("author"),
-                    "views": d.get("viewCount"),
-                    "likes": d.get("likeCount"),
-                    "published": d.get("publishedText"),
-                    "description": (d.get("description") or "")[:700],
-                    "comment_count": d.get("commentCount"),
-                }
-        else:
-            d = get_json(base + "/streams/" + VID)
-            if d:
-                return {
-                    "title": d.get("title"),
-                    "channel": d.get("uploader"),
-                    "views": d.get("views"),
-                    "likes": d.get("likes"),
-                    "published": d.get("uploadedDate"),
-                    "description": (d.get("description") or "")[:700],
-                    "comment_count": d.get("commentCount"),
-                }
-    except Exception as e:  # noqa: BLE001
-        print("meta err:", repr(e))
-    return {}
+def fetch_replies(base, token, limit):
+    out = []
+    pages = 0
+    while token and pages < MAX_REPLY_PAGES and len(out) < limit:
+        try:
+            d = get_json(base + "/api/v1/comments/" + VID
+                         + "?continuation=" + urllib.parse.quote(token))
+        except Exception as e:  # noqa: BLE001
+            print("reply err:", repr(e))
+            break
+        if not d:
+            break
+        batch = d.get("comments") or []
+        if not batch:
+            break
+        out.extend(batch)
+        token = d.get("continuation")
+        pages += 1
+        time.sleep(0.7)
+    return out
 
 
 def main():
-    res = collect()
-    if not res:
+    bases = candidates()
+    hit = None
+    for i in range(0, len(bases), 10):
+        with ThreadPoolExecutor(max_workers=10) as ex:
+            for res in ex.map(probe, bases[i:i + 10]):
+                if res and not hit:
+                    hit = res
+                    print("HIT", res[0])
+        if hit:
+            break
+    if not hit:
         print("ALL FAILED")
-        with open("comments_top50.json", "w", encoding="utf-8") as f:
-            json.dump({"error": "no mirror returned comments", "video_id": VID}, f,
-                      ensure_ascii=False, indent=2)
+        with open("replies.json", "w", encoding="utf-8") as f:
+            json.dump({"error": "no mirror", "video_id": VID}, f, ensure_ascii=False)
         return
 
-    kind, base, raw = res
-    items = [norm(c) for c in dedupe(raw)]
-    items.sort(key=lambda x: x["like_count"], reverse=True)
-    meta = video_meta(kind, base)
-    print("unique comments:", len(items), "| pinned:", sum(1 for i in items if i["pinned"]))
+    base, first = hit
+    raw = collect(base, first)
+    seen = set()
+    uniq = []
+    for c in raw:
+        k = c.get("commentId") or (str(c.get("author")) + str(c.get("content"))[:100])
+        if k in seen:
+            continue
+        seen.add(k)
+        uniq.append(c)
+    uniq.sort(key=lambda c: parse_likes(c.get("likeCount")), reverse=True)
+    top = uniq[:TOP_N]
+    print("unique:", len(uniq), "top:", len(top))
+
+    total_replies = 0
+    out = []
+    for idx, c in enumerate(top, 1):
+        body = norm_basic(c)
+        count, cont = reply_meta(c)
+        replies = []
+        if cont and total_replies < MAX_TOTAL_REPLIES:
+            got = fetch_replies(base, cont, min(MAX_REPLIES_PER, MAX_TOTAL_REPLIES - total_replies))
+            total_replies += len(got)
+            replies = [norm_basic(r) for r in got]
+            replies.sort(key=lambda r: r["like_count"], reverse=True)
+            print("rank", idx, "replies", len(replies), "/", count)
+            time.sleep(0.9)
+        body["rank"] = idx
+        body["reply_total"] = count
+        body["replies"] = replies
+        out.append(body)
 
     payload = {
         "video_id": VID,
-        "source": {"kind": kind, "base": base},
-        "meta": meta,
-        "fetched_total": len(items),
-        "comments": items[:KEEP],
+        "source": {"kind": "invidious", "base": base},
+        "fetched_total": len(uniq),
+        "reply_total_fetched": total_replies,
+        "comments": out,
     }
-    with open("comments_top50.json", "w", encoding="utf-8") as f:
+    with open("replies.json", "w", encoding="utf-8") as f:
         json.dump(payload, f, ensure_ascii=False, indent=2)
-    print("SAVED", len(payload["comments"]))
+    print("SAVED replies:", total_replies)
 
 
 if __name__ == "__main__":

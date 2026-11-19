@@ -1,8 +1,5 @@
 invidious list ok: 16
-piped list failed: URLError(OSError(101, 'Network is unreachable'))
-candidates: 27
-HIT invidious https://inv.nadeko.net
-page 1: 20
+HIT https://inv.nadeko.net
 page 2 + 20 total 40
 page 3 + 20 total 60
 page 4 + 20 total 80
@@ -12,15 +9,49 @@ page 7 + 20 total 140
 page 8 + 20 total 160
 page 9 + 20 total 180
 page 10 + 20 total 200
-meta err: <HTTPError 403: 'Forbidden'>
-unique comments: 200 | pinned: 0
-SAVED 60
-total 60
-drwxr-xr-x 4 runner runner  4096 Nov 19 10:16 .
-drwxr-xr-x 3 runner runner  4096 Nov 19 10:15 ..
-drwxr-xr-x 7 runner runner  4096 Nov 19 10:15 .git
-drwxr-xr-x 3 runner runner  4096 Nov 19 10:15 .github
--rw-r--r-- 1 runner runner    24 Nov 19 10:15 README.md
--rw-r--r-- 1 runner runner 20482 Nov 19 10:16 comments_top50.json
--rw-r--r-- 1 runner runner  8209 Nov 19 10:15 grab.py
--rw-r--r-- 1 runner runner   430 Nov 19 10:16 log.txt
+unique: 200 top: 50
+rank 1 replies 9 / 10
+rank 2 replies 41 / 74
+rank 3 replies 10 / 10
+rank 4 replies 35 / 36
+rank 5 replies 15 / 16
+rank 6 replies 17 / 18
+rank 7 replies 5 / 5
+rank 8 replies 17 / 18
+rank 10 replies 4 / 4
+rank 11 replies 2 / 2
+rank 12 replies 2 / 2
+rank 13 replies 4 / 4
+rank 14 replies 2 / 2
+rank 15 replies 25 / 25
+rank 16 replies 2 / 3
+rank 17 replies 7 / 7
+rank 19 replies 3 / 3
+rank 20 replies 7 / 7
+rank 27 replies 3 / 3
+rank 28 replies 6 / 6
+rank 31 replies 1 / 1
+rank 32 replies 2 / 2
+rank 34 replies 1 / 1
+rank 35 replies 1 / 1
+rank 36 replies 1 / 1
+rank 37 replies 2 / 2
+rank 38 replies 3 / 3
+rank 40 replies 1 / 1
+rank 41 replies 1 / 1
+rank 42 replies 2 / 2
+rank 43 replies 3 / 3
+rank 44 replies 1 / 1
+rank 46 replies 1 / 1
+rank 50 replies 1 / 2
+SAVED replies: 237
+total 168
+drwxr-xr-x 4 runner runner   4096 Nov 19 11:22 .
+drwxr-xr-x 3 runner runner   4096 Nov 19 11:20 ..
+drwxr-xr-x 7 runner runner   4096 Nov 19 11:20 .git
+drwxr-xr-x 3 runner runner   4096 Nov 19 11:20 .github
+-rw-r--r-- 1 runner runner     24 Nov 19 11:20 README.md
+-rw-r--r-- 1 runner runner  20482 Nov 19 11:20 comments_top50.json
+-rw-r--r-- 1 runner runner   6767 Nov 19 11:20 grab.py
+-rw-r--r-- 1 runner runner   1039 Nov 19 11:22 log.txt
+-rw-r--r-- 1 runner runner 112886 Nov 19 11:22 replies.json
