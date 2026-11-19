@@ -10,33 +10,126 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -q -U yt-dlp youtube-comment-downloader
+      - name: clean
+        run: rm -f inv.json log.txt comments.json info*.json
       - name: grab
         run: |
-          URL="https://www.youtube.com/watch?v=v4860RGi7IY"
-          ID="v4860RGi7IY"
-          { echo "=== A comment-downloader ==="
-            youtube-comment-downloader --url "$URL" --output comments.json --limit 600
-          } >> log.txt 2>&1 || true
-          if [ ! -s comments.json ]; then
-            { echo "=== B yt-dlp clients ==="
-              for pc in tv android_vr ios mweb web_embedded; do
-                echo "--- $pc ---"
-                yt-dlp --skip-download --write-comments --write-info-json \
-                  --extractor-args "youtube:player_client=$pc;comment_sort=top;max_comments=300,all,0" \
-                  -o "info_$pc" "$URL" && break
-              done
-            } >> log.txt 2>&1 || true
-          fi
-          if [ ! -s comments.json ] && ! ls info_*.info.json >/dev/null 2>&1; then
-            { echo "=== C invidious ==="
-              for base in https://inv.nadeko.net https://invidious.nerdvpn.de https://yewtu.be https://iv.melmac.space; do
-                echo "--- $base ---"
-                curl -s -m 30 "$base/api/v1/comments/$ID?sort_by=top" -o inv.json
-                if [ -s inv.json ] && grep -q likeCount inv.json; then mv inv.json comments_inv.json; break; fi
-              done
-            } >> log.txt 2>&1 || true
-          fi
+          cat > grab.py <<'PY'
+          import json
+          import urllib.request
+          from concurrent.futures import ThreadPoolExecutor
+
+          ID = "v4860RGi7IY"
+          UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+
+          FALLBACK = [
+              ("https://inv.nadeko.net/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.nerdvpn.de/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://yewtu.be/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.f5.si/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://iv.melmac.space/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.jing.rocks/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.private.coffee/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.privacyredirect.com/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.materialio.us/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.perennialte.ch/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://yt.artemislena.eu/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://invidious.dhusch.de/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
+              ("https://pipedapi.kavin.rocks/comments/" + ID, "piped"),
+              ("https://pipedapi.adminforge.de/comments/" + ID, "piped"),
+              ("https://pipedapi.drgns.space/comments/" + ID, "piped"),
+              ("https://pipedapi.leptons.xyz/comments/" + ID, "piped"),
+              ("https://pipedapi.reallyaweso.me/comments/" + ID, "piped"),
+              ("https://api.piped.private.coffee/comments/" + ID, "piped"),
+              ("https://pipedapi.ducks.party/comments/" + ID, "piped"),
+              ("https://pipedapi.nosebs.ru/comments/" + ID, "piped"),
+              ("https://pipedapi.orangenet.cc/comments/" + ID, "piped"),
+              ("https://pipedapi.void.dx/comments/" + ID, "piped"),
+              ("https://pipedapi.darkness.services/comments/" + ID, "piped"),
+              ("https://pipedapi.astartes.nl/comments/" + ID, "piped"),
+              ("https://pipedapi.orangenet.cc/comments/" + ID, "piped"),
+          ]
+
+
+          def get(url, t=20):
+              req = urllib.request.Request(
+                  url, headers={"User-Agent": UA, "Accept": "application/json"})
+              with urllib.request.urlopen(req, timeout=t) as r:
+                  return r.read().decode("utf-8", "replace")
+
+
+          def build_candidates():
+              out = list(FALLBACK)
+              try:
+                  data = json.loads(get("https://api.invidious.io/instances.json?sort_by=health"))
+                  for item in data:
+                      info = item[1] if isinstance(item, list) else item
+                      uri = str(info.get("uri", "")).rstrip("/")
+                      if info.get("type") == "https" and uri:
+                          out.append((uri + "/api/v1/comments/" + ID + "?sort_by=top", "invidious"))
+                  print("invidious list ok")
+              except Exception as e:  # noqa: BLE001
+                  print("invidious list failed:", repr(e))
+              try:
+                  data = json.loads(get("https://piped-instances.kavin.rocks/"))
+                  for it in data:
+                      u = str(it.get("api_url", "")).rstrip("/")
+                      if u.startswith("https"):
+                          out.append((u + "/comments/" + ID, "piped"))
+                  print("piped list ok")
+              except Exception as e:  # noqa: BLE001
+                  print("piped list failed:", repr(e))
+
+              seen = set()
+              uniq = []
+              for url, kind in out:
+                  if url not in seen:
+                      seen.add(url)
+                      uniq.append((url, kind))
+              return uniq
+
+
+          def probe(item):
+              url, kind = item
+              try:
+                  txt = get(url)
+                  if not txt.lstrip().startswith("{"):
+                      return None
+                  d = json.loads(txt)
+                  cs = d.get("comments")
+                  if isinstance(cs, list) and len(cs) >= 3:
+                      return {"source": url, "kind": kind, "data": d}
+              except Exception:  # noqa: BLE001
+                  return None
+              return None
+
+
+          def main():
+              cands = build_candidates()
+              print("candidates:", len(cands))
+              found = None
+              for i in range(0, len(cands), 10):
+                  batch = cands[i:i + 10]
+                  with ThreadPoolExecutor(max_workers=10) as ex:
+                      for res in ex.map(probe, batch):
+                          if res and not found:
+                              found = res
+                              print("HIT", res["source"], "comments:", len(res["data"]["comments"]))
+                  if found:
+                      break
+              if found:
+                  with open("comments_src.json", "w", encoding="utf-8") as f:
+                      json.dump(found, f, ensure_ascii=False)
+                  print("SAVED ok")
+              else:
+                  print("ALL FAILED")
+
+
+          if __name__ == "__main__":
+              main()
+          PY
+          python grab.py >> log.txt 2>&1 || true
           ls -la >> log.txt
       - name: save
         if: always()
