@@ -1,14 +1,26 @@
-invidious list ok
+invidious list ok: 16
 piped list failed: URLError(OSError(101, 'Network is unreachable'))
-candidates: 28
-HIT https://inv.nadeko.net/api/v1/comments/v4860RGi7IY?sort_by=top comments: 20
-SAVED ok
-total 56
-drwxr-xr-x 4 runner runner  4096 Nov 19 10:06 .
-drwxr-xr-x 3 runner runner  4096 Nov 19 10:05 ..
-drwxr-xr-x 7 runner runner  4096 Nov 19 10:05 .git
-drwxr-xr-x 3 runner runner  4096 Nov 19 10:05 .github
--rw-r--r-- 1 runner runner    24 Nov 19 10:05 README.md
--rw-r--r-- 1 runner runner 24187 Nov 19 10:06 comments_src.json
--rw-r--r-- 1 runner runner  4561 Nov 19 10:05 grab.py
--rw-r--r-- 1 runner runner   190 Nov 19 10:06 log.txt
+candidates: 27
+HIT invidious https://inv.nadeko.net
+page 1: 20
+page 2 + 20 total 40
+page 3 + 20 total 60
+page 4 + 20 total 80
+page 5 + 20 total 100
+page 6 + 20 total 120
+page 7 + 20 total 140
+page 8 + 20 total 160
+page 9 + 20 total 180
+page 10 + 20 total 200
+meta err: <HTTPError 403: 'Forbidden'>
+unique comments: 200 | pinned: 0
+SAVED 60
+total 60
+drwxr-xr-x 4 runner runner  4096 Nov 19 10:16 .
+drwxr-xr-x 3 runner runner  4096 Nov 19 10:15 ..
+drwxr-xr-x 7 runner runner  4096 Nov 19 10:15 .git
+drwxr-xr-x 3 runner runner  4096 Nov 19 10:15 .github
+-rw-r--r-- 1 runner runner    24 Nov 19 10:15 README.md
+-rw-r--r-- 1 runner runner 20482 Nov 19 10:16 comments_top50.json
+-rw-r--r-- 1 runner runner  8209 Nov 19 10:15 grab.py
+-rw-r--r-- 1 runner runner   430 Nov 19 10:16 log.txt

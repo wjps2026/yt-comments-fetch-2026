@@ -1,112 +1,265 @@
 import json
+import os
+import re
+import time
+import urllib.parse
 import urllib.request
 from concurrent.futures import ThreadPoolExecutor
 
-ID = "v4860RGi7IY"
+DEFAULT_VID = "We38nMkRTD8"
+
+
+def resolve_vid():
+    raw = (os.environ.get("VIDEO") or "").strip()
+    if not raw:
+        return DEFAULT_VID
+    m = re.search(r"(?:v=|youtu\.be/|shorts/|embed/|live/)([A-Za-z0-9_-]{11})", raw)
+    if m:
+        return m.group(1)
+    if re.fullmatch(r"[A-Za-z0-9_-]{11}", raw):
+        return raw
+    return DEFAULT_VID
+
+
+VID = resolve_vid()
 UA = ("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
       "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36")
+MAX_PAGES = 10
+TARGET = 50
+KEEP = 60
 
-FALLBACK = [
-    ("https://inv.nadeko.net/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.nerdvpn.de/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://yewtu.be/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.f5.si/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://iv.melmac.space/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.jing.rocks/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.private.coffee/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.privacyredirect.com/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.materialio.us/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.perennialte.ch/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://yt.artemislena.eu/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://invidious.dhusch.de/api/v1/comments/" + ID + "?sort_by=top", "invidious"),
-    ("https://pipedapi.kavin.rocks/comments/" + ID, "piped"),
-    ("https://pipedapi.adminforge.de/comments/" + ID, "piped"),
-    ("https://pipedapi.drgns.space/comments/" + ID, "piped"),
-    ("https://pipedapi.leptons.xyz/comments/" + ID, "piped"),
-    ("https://pipedapi.reallyaweso.me/comments/" + ID, "piped"),
-    ("https://api.piped.private.coffee/comments/" + ID, "piped"),
-    ("https://pipedapi.ducks.party/comments/" + ID, "piped"),
-    ("https://pipedapi.nosebs.ru/comments/" + ID, "piped"),
-    ("https://pipedapi.orangenet.cc/comments/" + ID, "piped"),
-    ("https://pipedapi.void.dx/comments/" + ID, "piped"),
-    ("https://pipedapi.darkness.services/comments/" + ID, "piped"),
-    ("https://pipedapi.astartes.nl/comments/" + ID, "piped"),
-    ("https://pipedapi.orangenet.cc/comments/" + ID, "piped"),
+INV_BASES = [
+    "https://inv.nadeko.net",
+    "https://invidious.nerdvpn.de",
+    "https://yewtu.be",
+    "https://invidious.f5.si",
+    "https://iv.melmac.space",
+    "https://invidious.jing.rocks",
+    "https://invidious.private.coffee",
+    "https://invidious.privacyredirect.com",
+    "https://invidious.materialio.us",
+    "https://invidious.perennialte.ch",
+    "https://yt.artemislena.eu",
+    "https://invidious.dhusch.de",
+]
+PIPED_BASES = [
+    "https://pipedapi.kavin.rocks",
+    "https://pipedapi.adminforge.de",
+    "https://pipedapi.drgns.space",
+    "https://pipedapi.leptons.xyz",
+    "https://pipedapi.reallyaweso.me",
+    "https://api.piped.private.coffee",
+    "https://pipedapi.ducks.party",
+    "https://pipedapi.nosebs.ru",
+    "https://pipedapi.orangenet.cc",
+    "https://pipedapi.void.dx",
+    "https://pipedapi.darkness.services",
 ]
 
 
-def get(url, t=20):
+def http_get(url, t=25):
     req = urllib.request.Request(
         url, headers={"User-Agent": UA, "Accept": "application/json"})
     with urllib.request.urlopen(req, timeout=t) as r:
         return r.read().decode("utf-8", "replace")
 
 
-def build_candidates():
-    out = list(FALLBACK)
+def get_json(url, t=25):
+    raw = http_get(url, t)
+    if not raw.lstrip().startswith("{"):
+        return None
+    return json.loads(raw)
+
+
+def candidates():
+    inv = list(INV_BASES)
+    piped = list(PIPED_BASES)
     try:
-        data = json.loads(get("https://api.invidious.io/instances.json?sort_by=health"))
+        data = json.loads(http_get("https://api.invidious.io/instances.json?sort_by=health"))
         for item in data:
             info = item[1] if isinstance(item, list) else item
             uri = str(info.get("uri", "")).rstrip("/")
-            if info.get("type") == "https" and uri:
-                out.append((uri + "/api/v1/comments/" + ID + "?sort_by=top", "invidious"))
-        print("invidious list ok")
+            if info.get("type") == "https" and uri and uri not in inv:
+                inv.append(uri)
+        print("invidious list ok:", len(inv))
     except Exception as e:  # noqa: BLE001
         print("invidious list failed:", repr(e))
     try:
-        data = json.loads(get("https://piped-instances.kavin.rocks/"))
+        data = json.loads(http_get("https://piped-instances.kavin.rocks/"))
         for it in data:
             u = str(it.get("api_url", "")).rstrip("/")
-            if u.startswith("https"):
-                out.append((u + "/comments/" + ID, "piped"))
-        print("piped list ok")
+            if u.startswith("https") and u not in piped:
+                piped.append(u)
+        print("piped list ok:", len(piped))
     except Exception as e:  # noqa: BLE001
         print("piped list failed:", repr(e))
-
-    seen = set()
-    uniq = []
-    for url, kind in out:
-        if url not in seen:
-            seen.add(url)
-            uniq.append((url, kind))
-    return uniq
+    return [("invidious", b) for b in inv] + [("piped", b) for b in piped]
 
 
-def probe(item):
-    url, kind = item
+def first_page(cand):
+    kind, base = cand
     try:
-        txt = get(url)
-        if not txt.lstrip().startswith("{"):
-            return None
-        d = json.loads(txt)
-        cs = d.get("comments")
-        if isinstance(cs, list) and len(cs) >= 3:
-            return {"source": url, "kind": kind, "data": d}
+        if kind == "invidious":
+            d = get_json(base + "/api/v1/comments/" + VID + "?sort_by=top")
+        else:
+            d = get_json(base + "/comments/" + VID)
+        if d and isinstance(d.get("comments"), list) and d["comments"]:
+            return (kind, base, d)
     except Exception:  # noqa: BLE001
         return None
     return None
 
 
-def main():
-    cands = build_candidates()
+def next_token(kind, d):
+    return d.get("continuation") if kind == "invidious" else d.get("nextpage")
+
+
+def page_url(kind, base, token):
+    if kind == "invidious":
+        return (base + "/api/v1/comments/" + VID + "?sort_by=top&continuation="
+                + urllib.parse.quote(token))
+    return base + "/comments/" + VID + "?nextpage=" + urllib.parse.quote(token)
+
+
+def collect():
+    cands = candidates()
     print("candidates:", len(cands))
-    found = None
+    hit = None
     for i in range(0, len(cands), 10):
-        batch = cands[i:i + 10]
         with ThreadPoolExecutor(max_workers=10) as ex:
-            for res in ex.map(probe, batch):
-                if res and not found:
-                    found = res
-                    print("HIT", res["source"], "comments:", len(res["data"]["comments"]))
-        if found:
+            for res in ex.map(first_page, cands[i:i + 10]):
+                if res and not hit:
+                    hit = res
+                    print("HIT", res[0], res[1])
+        if hit:
             break
-    if found:
-        with open("comments_src.json", "w", encoding="utf-8") as f:
-            json.dump(found, f, ensure_ascii=False)
-        print("SAVED ok")
-    else:
+    if not hit:
+        return None
+
+    kind, base, data = hit
+    comments = list(data.get("comments") or [])
+    token = next_token(kind, data)
+    pages = 1
+    print("page 1:", len(comments))
+    while token and pages < MAX_PAGES:
+        time.sleep(1.0)
+        try:
+            d = get_json(page_url(kind, base, token))
+        except Exception as e:  # noqa: BLE001
+            print("page err:", repr(e))
+            break
+        if not d:
+            break
+        batch = d.get("comments") or []
+        if not batch:
+            break
+        comments.extend(batch)
+        pages += 1
+        print("page", pages, "+", len(batch), "total", len(comments))
+        token = next_token(kind, d)
+        if len(comments) >= 220:
+            break
+    return kind, base, comments
+
+
+def parse_likes(v):
+    if isinstance(v, int):
+        return v
+    if isinstance(v, float):
+        return int(v)
+    s = str(v or "0").strip().upper().replace(",", "")
+    try:
+        if s.endswith("K"):
+            return int(float(s[:-1]) * 1000)
+        if s.endswith("M"):
+            return int(float(s[:-1]) * 1000000)
+        return int(float(s))
+    except Exception:  # noqa: BLE001
+        return 0
+
+
+def dedupe(comments):
+    seen = set()
+    out = []
+    for c in comments:
+        key = c.get("commentId") or (str(c.get("author")) + "|" + str(c.get("content") or c.get("commentText") or "")[:120])
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append(c)
+    return out
+
+
+def norm(c):
+    text = c.get("content")
+    if text is None:
+        text = c.get("commentText")
+    return {
+        "author": c.get("author") or c.get("uploader") or "",
+        "text": text or "",
+        "like_count": parse_likes(c.get("likeCount", c.get("likes"))),
+        "pinned": bool(c.get("isPinned") or c.get("pinned")),
+        "published": c.get("publishedText") or c.get("published") or "",
+        "replies": len(c.get("replies") or []),
+    }
+
+
+def video_meta(kind, base):
+    try:
+        if kind == "invidious":
+            d = get_json(base + "/api/v1/videos/" + VID)
+            if d:
+                return {
+                    "title": d.get("title"),
+                    "channel": d.get("author"),
+                    "views": d.get("viewCount"),
+                    "likes": d.get("likeCount"),
+                    "published": d.get("publishedText"),
+                    "description": (d.get("description") or "")[:700],
+                    "comment_count": d.get("commentCount"),
+                }
+        else:
+            d = get_json(base + "/streams/" + VID)
+            if d:
+                return {
+                    "title": d.get("title"),
+                    "channel": d.get("uploader"),
+                    "views": d.get("views"),
+                    "likes": d.get("likes"),
+                    "published": d.get("uploadedDate"),
+                    "description": (d.get("description") or "")[:700],
+                    "comment_count": d.get("commentCount"),
+                }
+    except Exception as e:  # noqa: BLE001
+        print("meta err:", repr(e))
+    return {}
+
+
+def main():
+    res = collect()
+    if not res:
         print("ALL FAILED")
+        with open("comments_top50.json", "w", encoding="utf-8") as f:
+            json.dump({"error": "no mirror returned comments", "video_id": VID}, f,
+                      ensure_ascii=False, indent=2)
+        return
+
+    kind, base, raw = res
+    items = [norm(c) for c in dedupe(raw)]
+    items.sort(key=lambda x: x["like_count"], reverse=True)
+    meta = video_meta(kind, base)
+    print("unique comments:", len(items), "| pinned:", sum(1 for i in items if i["pinned"]))
+
+    payload = {
+        "video_id": VID,
+        "source": {"kind": kind, "base": base},
+        "meta": meta,
+        "fetched_total": len(items),
+        "comments": items[:KEEP],
+    }
+    with open("comments_top50.json", "w", encoding="utf-8") as f:
+        json.dump(payload, f, ensure_ascii=False, indent=2)
+    print("SAVED", len(payload["comments"]))
 
 
 if __name__ == "__main__":
